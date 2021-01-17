@@ -10,5 +10,6 @@ def rexex(pattern: str, query: str):
     d = {}
     for match in s:
         for key, value in match.items():
-            d.setdefault(key, []).append(value)
+            if value:
+                d.setdefault(key, []).append(value)
     return d
