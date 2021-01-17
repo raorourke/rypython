@@ -1,7 +1,7 @@
 import re
 
 
-def rexex(pattern: str, query: str):
+def rexex(pattern: str, query: str, allow_empty: bool = True):
     r = re.compile(pattern)
     s = [
         m.groupdict()
@@ -10,6 +10,7 @@ def rexex(pattern: str, query: str):
     d = {}
     for match in s:
         for key, value in match.items():
-            if value:
-                d.setdefault(key, []).append(value)
+            if not value and not allow_empty:
+                continue
+            d.setdefault(key, []).append(value)
     return d
