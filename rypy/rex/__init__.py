@@ -1,7 +1,10 @@
 import re
 
+def stringify(q: str):
+    return q if isinstance(q, str) else str(q)
 
 def capture_all(pattern: str, query: str, allow_empty: bool = True):
+    query = stringify(query)
     r = re.compile(pattern)
     s = [
         m.groupdict()
@@ -16,5 +19,6 @@ def capture_all(pattern: str, query: str, allow_empty: bool = True):
     return d
 
 def is_format(pattern: str, query: str):
+    query = stringify(query)
     r = re.compile(pattern)
     return bool(re.match(pattern, query))
