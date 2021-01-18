@@ -1,7 +1,7 @@
 import re
 
 
-def rexex(pattern: str, query: str, allow_empty: bool = True):
+def capture_all(pattern: str, query: str, allow_empty: bool = True):
     r = re.compile(pattern)
     s = [
         m.groupdict()
@@ -14,3 +14,7 @@ def rexex(pattern: str, query: str, allow_empty: bool = True):
                 continue
             d.setdefault(key, []).append(value)
     return d
+
+def is_format(pattern: str, query: str):
+    r = re.compile(pattern)
+    return bool(re.match(pattern, query))
