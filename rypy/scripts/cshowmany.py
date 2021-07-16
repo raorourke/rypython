@@ -1,4 +1,4 @@
-from welo365 import O365Account, WorkBook
+from ry365 import O365Account, WorkBook
 import pandas as pd
 import sys
 

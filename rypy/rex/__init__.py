@@ -21,4 +21,4 @@ def capture_all(pattern: str, query: str, allow_empty: bool = True):
 def is_format(pattern: str, query: str):
     query = stringify(query)
     r = re.compile(pattern)
-    return bool(re.match(pattern, query))
+    return bool(re.match(r, query))

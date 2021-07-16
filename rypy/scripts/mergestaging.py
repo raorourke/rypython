@@ -1,4 +1,4 @@
-from welo365 import O365Account
+from rypy.ry365 import O365Account
 import re
 
 SITE = 'msteams_08dd34'

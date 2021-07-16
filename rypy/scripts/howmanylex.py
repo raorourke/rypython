@@ -1,4 +1,4 @@
-from welo365 import O365Account
+from ry365 import O365Account
 
 
 

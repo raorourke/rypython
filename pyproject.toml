@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "rypy"
-version = "0.1.7"
+version = "0.2.0"
 description = ""
 authors = ["Ryan O'Rourke <raorourke@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
 pandas = "^1.2.1"
-welo365 = "^2.0.10"
+O365 = "^2.0.14"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
@@ -16,8 +16,3 @@ ipython = "^7.19.0"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[[tool.poetry.source]]
-name = "rypy"
-url = "https://pypi.rypy.tk/simple/"
-secondary = true
