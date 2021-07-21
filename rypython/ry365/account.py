@@ -6,13 +6,13 @@ import sys
 import re
 
 from urllib.parse import parse_qs, urlparse
-from welo365.logger import get_logger
+from rypython.ry365.logger import get_logger
 
 from O365 import Account, FileSystemTokenBackend
 from O365.connection import MSGraphProtocol
 from pathlib import Path
 
-from welo365.sharepoint import Sharepoint
+from rypython.ry365.sharepoint import Sharepoint
 
 logger = get_logger(__file__)
 
