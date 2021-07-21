@@ -44,7 +44,9 @@ class O365Account(Account):
             'scopes': scopes,
             'auth_flow_type': auth_flow_type
         }
+        print(f"{scopes=}")
         super().__init__(creds, **OPTIONS)
+        print(f"{self.is_authenticated=}")
         if not self.is_authenticated:
             self.authenticate()
         self.drives = self.storage().get_drives()
