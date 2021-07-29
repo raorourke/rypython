@@ -90,6 +90,11 @@ class WorkSheet(_WorkSheet):
         url = self.build_url('/protection/unprotect')
         return bool(self.session.post(url))
 
+    def auto_fit_columns(self):
+        _range = self.get_used_range()
+        format = _range.get_format()
+        format.auto_fit_columns()
+
 
 class WorkBook(_WorkBook):
     worksheet_constructor = WorkSheet
