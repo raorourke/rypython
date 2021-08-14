@@ -1,10 +1,12 @@
+from pathlib import Path
 import pandas as pd
-import rypython.ry365 as ry365
+from rypython.ry365 import WorkBook
+from O365.drive import File
 
-def read_excel365(file_url: str, sheet_name: str):
-    xl = ry365.account.O365Account().search(file_url)
-    wb = ry365.excel.WorkBook(xl)
-    ws = wb.get_worksheet(sheet_name)
+def read_excel365(xl_file: File):
+    wb = WorkBook(xl_file)
+    wss = wb.get_worksheet()
+    ws = wss[0]
     _range = ws.get_used_range()
     cols, *values = _range.values
     df = pd.DataFrame(values, columns=cols)
