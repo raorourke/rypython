@@ -78,7 +78,6 @@ class O365Account(Account):
         results = list(drive.search(query))
         return results[0] if results else results
 
-
     def get_folder(self, *subfolders: str, site: str = None):
         if len(subfolders) == 0:
             return self.drive
@@ -94,3 +93,8 @@ class O365Account(Account):
             except:
                 raise ('Path {} not exist.'.format('/'.join(subfolders)))
         return subfolder_drive
+
+    def get_document_library_by_name(self, document_library_name: str):
+        for drive in self.site.list_document_libraries():
+            if drive.name.lower() == document_library_name.lower():
+                return drive
