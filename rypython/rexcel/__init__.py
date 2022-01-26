@@ -25,15 +25,20 @@ class RexelWorkbook:
             self,
             df: pd.DataFrame,
             worksheet_name: str,
-            column_widths: list
+            column_widths: list,
+            include_index: bool = False
     ):
         df = df.where(pd.notnull(df), '')
+        if include_index:
+            df = df.reset_index()
         wks = self.workbook.add_worksheet(name=worksheet_name)
         bold = self.workbook.add_format({'bold': 1})
         if column_widths:
             for first, last, width in column_widths:
                 wks.set_column(first, last, width)
         for j, header in enumerate(df.columns):
+            if not header:
+                continue
             wks.write(
                 f"{self.COLS[j]}1",
                 header,
