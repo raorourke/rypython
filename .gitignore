@@ -146,5 +146,5 @@ dmypy.json
 
 *.pickle
 *_token.txt
-*rypy/scripts/
+*scripts/
 *.DS_Store
