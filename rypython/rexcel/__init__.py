@@ -37,7 +37,7 @@ class RexelWorkbook:
             for first, last, width in column_widths:
                 wks.set_column(first, last, width)
         for j, header in enumerate(df.columns):
-            if not header:
+            if not header or header == 'index':
                 continue
             wks.write(
                 f"{self.COLS[j]}1",
