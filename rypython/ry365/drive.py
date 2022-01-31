@@ -8,7 +8,7 @@ from O365.drive import Storage as _Storage
 from O365.drive import Image, Photo, File
 
 
-logging.basicConfig(os.environ.get('LOGLEVEL', 'WARNING'))
+logging.basicConfig(level=os.environ.get('LOGLEVEL', 'WARNING'))
 
 
 class Folder(_Folder):

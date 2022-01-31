@@ -14,7 +14,7 @@ from pathlib import Path
 
 from rypython.ry365.sharepoint import Sharepoint
 
-logger = get_logger(__file__)
+logging.basicConfig(level=os.environ.get('LOGLEVEL', 'WARNING'))
 
 DOMAIN = 'welocalize.sharepoint.com'
 TOKEN_PATH = Path(os.environ.get('welo365_token_path')).expanduser()
