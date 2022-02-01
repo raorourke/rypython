@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import logging
+import os
 import requests
 from requests.exceptions import HTTPError
 from rypython.ry365.logger import get_logger

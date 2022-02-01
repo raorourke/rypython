@@ -16,7 +16,7 @@ def get_logger(name: str = None):
     formatter = logging.Formatter(log_format, date_format)
     ch = logging.StreamHandler(sys.stderr)
     ch.setFormatter(formatter)
-    ch.setLevel(logging.INFO)
+    ch.setLevel(logging.WARNING)
     logger.addHandler(ch)
     fh = logging.FileHandler(logfile)
     fh.setFormatter(formatter)
