@@ -30,7 +30,7 @@ class RexcelWorkbook:
             column_widths: list,
             include_index: bool = False,
             format_rows: Tuple[Callable, Format] = None,
-            formula_columns: Tuple[Callable, Callable] = None
+            formula_columns: dict = None
     ):
         df = df.where(pd.notnull(df), '')
         format_test, row_format = format_rows if format_rows else (None, None)
@@ -41,7 +41,11 @@ class RexcelWorkbook:
         if column_widths:
             for first, last, width in column_widths:
                 wks.set_column(first, last, width)
-        for j, header in enumerate(df.columns):
+        columns = df.columns.tolist()
+        if formula_columns is not None:
+            for formula_column in formula_columns:
+                columns.append(formula_column)
+        for j, header in enumerate(columns):
             if not header or header == 'index':
                 continue
             wks.write(
@@ -75,9 +79,14 @@ class RexcelWorkbook:
                 )
                 offset += 1
             if formula_columns is not None:
-                for row_test, formula_format in formula_columns:
+                for row_test, formula_format in formula_columns.values():
                     if row_test(row):
-                        wks.write_formula(formula_format(row))
+                        cell_info = [
+                            row_number,
+                            col_number + offset,
+                            formula_format(row)
+                        ]
+                        wks.write_formula(*cell_info)
                     offset += 1
             row_number += 1
         self.worksheets.append(wks)
