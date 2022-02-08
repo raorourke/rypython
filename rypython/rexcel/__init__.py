@@ -84,7 +84,7 @@ class RexcelWorkbook:
                         cell_info = [
                             row_number,
                             col_number + offset,
-                            formula_format(row)
+                            formula_format(row, row_number)
                         ]
                         wks.write_formula(*cell_info)
                     offset += 1
