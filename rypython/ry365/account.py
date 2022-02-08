@@ -5,7 +5,7 @@ import os
 import sys
 import re
 
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, unquote
 from rypython.ry365.logger import get_logger
 
 from O365 import Account, FileSystemTokenBackend
@@ -93,6 +93,22 @@ class O365Account(Account):
             except:
                 raise ('Path {} not exist.'.format('/'.join(subfolders)))
         return subfolder_drive
+
+    def get_folder_by_path(self, folder_path: str):
+        pattern = r'^.*\/sites\/(?P<site>[0-9.\-A-Za-z]+)\/(?:[0-9.\-A-Za-z\s]+)\/(?P<folder_path>.*)$'
+        folder_path = unquote(folder_path)
+        matches = re.search(pattern, folder_path)
+        if not matches:
+            raise ValueError(f"Folder not found. Check that your path.")
+        matches = matches.groupdict()
+        site = matches.get('site')
+        folder_path = matches.get('folder_path')
+        if not site or not folder_path:
+            raise ValueError(f"Folder not found. Check that your path.")
+        return self.get_folder(
+            *folder_path.split('/'),
+            site=site
+        )
 
     def get_document_library_by_name(self, document_library_name: str, site: str = None):
         site = self.get_site(site) if site else self.site
