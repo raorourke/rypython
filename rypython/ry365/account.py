@@ -6,7 +6,6 @@ import sys
 import re
 
 from urllib.parse import parse_qs, urlparse, unquote
-from rypython.ry365.logger import get_logger
 
 from O365 import Account, FileSystemTokenBackend
 from O365.connection import MSGraphProtocol
@@ -33,7 +32,7 @@ class O365Account(Account):
         TOKEN = TOKEN_PATH / 'o365_token.txt'
         token_backend = None
         if TOKEN.exists():
-            logger.debug(f"Using token file {TOKEN}")
+            logging.debug(f"Using token file {TOKEN}")
             token_backend = FileSystemTokenBackend(token_path=TOKEN_PATH)
             token_backend.load_token()
             token_backend.get_token()
