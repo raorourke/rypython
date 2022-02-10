@@ -110,7 +110,7 @@ class O365Account(Account):
 
     def get_folder_by_url(self, url: str, document_library_transform: Callable = None):
         # url = unquote(link)
-        site, lib_name, *folder_path = unquote(link).split('/')[4:]
+        site, lib_name, *folder_path = unquote(url).split('/')[4:]
         account = O365Account(site=site)
         # lib_name = lib_name.replace('Lex 30', 'Lex 3.0')
         if document_library_transform:
