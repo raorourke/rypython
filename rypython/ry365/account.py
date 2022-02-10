@@ -109,16 +109,14 @@ class O365Account(Account):
         )
 
     def get_folder_by_url(self, url: str, document_library_transform: Callable = None):
-        # url = unquote(link)
         site, lib_name, *folder_path = unquote(url).split('/')[4:]
         account = O365Account(site=site)
-        # lib_name = lib_name.replace('Lex 30', 'Lex 3.0')
         if document_library_transform:
             lib_name = document_library_transform(lib_name)
         folder_path = '/'.join(folder_path)
         doc_library = self.get_document_library_by_name(
             lib_name
-        ) if lib_name != 'Shared Documents' else site.site.get_default_document_library()
+        ) if lib_name != 'Shared Documents' else self.site.get_default_document_library()
         return doc_library.get_item_by_path(folder_path)
 
     def get_document_library_by_name(self, document_library_name: str, site: str = None):
