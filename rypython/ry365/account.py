@@ -7,7 +7,6 @@ import sys
 from O365 import Account, FileSystemTokenBackend
 from O365.connection import MSGraphProtocol
 from pathlib import Path
-from typing import Callable
 from urllib.parse import parse_qs, urlparse, unquote
 
 from rypython.ry365.sharepoint import Sharepoint
@@ -108,12 +107,14 @@ class O365Account(Account):
             site=site
         )
 
-    def get_folder_by_url(self, url: str, document_library_transform: Callable = None):
+    def get_folder_by_url(self, url: str, library_map: dict = None):
         site, lib_name, *folder_path = unquote(url).split('/')[4:]
-        account = O365Account(site=site)
-        if document_library_transform:
-            lib_name = document_library_transform(lib_name)
         folder_path = '/'.join(folder_path)
+        if site != self.site.name:
+            return O365Account(site=site).get_folder_by_url(
+                url, library_map=library_map
+            )
+        lib_name = library_map.get(lib_name) if library_map else lib_name
         doc_library = self.get_document_library_by_name(
             lib_name
         ) if lib_name != 'Shared Documents' else self.site.get_default_document_library()
