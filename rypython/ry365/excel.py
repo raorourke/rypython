@@ -5,7 +5,7 @@ import logging
 import os
 import requests
 from requests.exceptions import HTTPError
-from rypython.ry365.logger import get_logger
+# from rypython.ry365.logger import get_logger
 from O365.excel import Range as _Range
 from O365.excel import WorkBook as _WorkBook
 from O365.excel import WorkSheet as _WorkSheet
