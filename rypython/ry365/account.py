@@ -114,7 +114,8 @@ class O365Account(Account):
             return O365Account(site=site).get_folder_by_url(
                 url, library_map=library_map
             )
-        lib_name = library_map.get(lib_name) if library_map else lib_name
+        if lib_name != 'Shared Documents' and library_map:
+            lib_name = library_map.get(lib_name)
         doc_library = self.get_document_library_by_name(
             lib_name
         ) if lib_name != 'Shared Documents' else self.site.get_default_document_library()
