@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rypython"
-version = "1.3.3"
+version = "1.3.4"
 description = ""
 authors = ["Ryan O'Rourke <raorourke@gmail.com>"]
 
