@@ -3,19 +3,68 @@ from __future__ import annotations
 import logging
 import os
 import re
-import sys
-from O365 import Account, FileSystemTokenBackend
-from O365.connection import MSGraphProtocol
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, unquote
+
+import yaml
+from O365 import Account, FileSystemTokenBackend
+from O365.connection import MSGraphProtocol
 
 from rypython.ry365.sharepoint import Sharepoint
 
 logging.basicConfig(level=os.environ.get('LOGLEVEL', 'WARNING'))
 
-DOMAIN = 'welocalize.sharepoint.com'
-TOKEN_PATH = Path(os.environ.get('welo365_token_path')).expanduser()
-CREDS = (os.environ.get('welo365_client_id'), os.environ.get('welo365_client_secret'))
+RYPYTHON_CONFIG_PATH = os.environ.get(
+    'RYPYTHON_CONFIG_PATH',
+    Path.home() / '.config' / 'rypython'
+)
+if isinstance(RYPYTHON_CONFIG_PATH, str):
+    RYPYTHON_CONFIG_PATH = Path(RYPYTHON_CONFIG_PATH)
+
+if not RYPYTHON_CONFIG_PATH:
+    raise MissingConfiguration('Missing local configuration path!')
+RYPYTHON_CONFIG_FILE = RYPYTHON_CONFIG_PATH / 'config.yaml'
+if not RYPYTHON_CONFIG_FILE:
+    raise MissingConfiguration('Missing local configuration file!')
+
+with open(RYPYTHON_CONFIG_FILE, 'r') as configfile:
+    RYPYTHON_CONFIG = yaml.safe_load(configfile)
+
+DOMAIN = RYPYTHON_CONFIG['sharepoint']['domain']
+CLIENT_ID = RYPYTHON_CONFIG['sharepoint']['client_id']
+CLIENT_SECRET = RYPYTHON_CONFIG['sharepoint']['client_secret']
+CREDS = (CLIENT_ID, CLIENT_SECRET)
+TOKEN_PATH = os.environ.get(
+    'RYPYTHON_TOKEN_PATH',
+    Path.home() / '.tokens'
+)
+if isinstance(TOKEN_PATH, str):
+    TOKEN_PATH = Path(TOKEN_PATH)
+
+'''
+class TokenBackend(FileSystemTokenBackend):
+    def save_token(self):
+        """
+        Saves the token dict in the specified file
+        :return bool: Success / Failure
+        """
+        if self.token is None:
+            raise ValueError('You have to set the "token" first.')
+
+        try:
+            if not self.token_path.parent.exists():
+                self.token_path.parent.mkdir(parents=True)
+        except Exception as e:
+            logging.error('Token could not be saved: {}'.format(str(e)))
+            return False
+
+        with self.token_path.open('w') as token_file:
+            # 'indent = True' will make the file human readable
+            self.serializer.dump(self.token, token_file, indent=True)
+
+        return True
+
+'''
 
 
 class O365Account(Account):
@@ -107,7 +156,6 @@ class O365Account(Account):
         if not doc_library:
             raise ValueError(f"Could not find document library named {lib_name} on site {site}!")
         return doc_library.get_item_by_path(item_path)
-
 
     def get_folder_by_path(self, folder_path: str):
         pattern = r'^.*\/sites\/(?P<site>[0-9.\-A-Za-z]+)\/(?:[0-9.\-A-Za-z\s]+)\/(?P<folder_path>.*)$'
