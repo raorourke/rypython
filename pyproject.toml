@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "rypython"
 version = "1.3.7"
-description = ""
+description = "Miscellaneous python tools"
 authors = ["Ryan O'Rourke <ryan@rypy.dev>"]
 
 [tool.poetry.dependencies]
