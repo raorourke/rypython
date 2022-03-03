@@ -14,10 +14,10 @@ def read_excel365(xl_file: Union[File, WorkBook], sheet_name: str = False, skip_
             dfs[ws.name] = read_excel365(wb, sheet_name=ws.name, skip_rows=skip_rows)
         return dfs
     if sheet_name is False:
-        ws = wb.get_worksheet(sheet_name)
-    elif sheet_name:
         wss = wb.get_worksheets()
         ws = wss[0]
+    elif sheet_name:
+        ws = wb.get_worksheet(sheet_name)
     _range = ws.get_used_range()
     cols, *values = _range.values[skip_rows:]
     df = pd.DataFrame(values, columns=cols)
