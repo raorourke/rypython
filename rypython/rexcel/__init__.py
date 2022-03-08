@@ -34,7 +34,9 @@ class RexcelWorkbook:
             include_index: bool = False,
             format_rows: Tuple[Callable, Format] = None,
             formula_columns: dict = None,
-            conditional_formatting: dict = None
+            conditional_formatting: dict = None,
+            hidden_rows: list = None,
+            hidden_columns: list = None
     ):
         df = df.where(pd.notnull(df), '')
         format_test, row_format = format_rows if format_rows else (None, None)
@@ -101,4 +103,8 @@ class RexcelWorkbook:
                     format_range,
                     config
                 )
+        for hidden_row in hidden_rows:
+            wks.set_row(hidden_row, None, None, {'hidden': True})
+        for hidden_column in hidden_columns:
+            wks.set_column(f"{hidden_column}:{hidden_column}", None, None, {'hidden': True})
         self.worksheets.append(wks)
