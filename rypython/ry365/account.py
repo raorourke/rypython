@@ -83,7 +83,7 @@ class O365Account(Account):
             token_backend = FileSystemTokenBackend(token_path=TOKEN_PATH)
             token_backend.load_token()
             token_backend.get_token()
-        scopes = scopes or ['offline_access', 'Sites.Manage.All']
+        scopes = scopes or ['offline_access', 'Sites.Manage.All', 'message_all']
         OPTIONS = {
             'token_backend': token_backend
         } if token_backend is not None else {
