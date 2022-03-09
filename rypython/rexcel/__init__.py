@@ -38,6 +38,8 @@ class RexcelWorkbook:
             hidden_rows: list = None,
             hidden_columns: list = None
     ):
+        hidden_rows = hidden_rows or []
+        hidden_columns = hidden_columns or []
         df = df.where(pd.notnull(df), '')
         format_test, row_format = format_rows if format_rows else (None, None)
         if include_index:
