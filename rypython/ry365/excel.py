@@ -5,7 +5,6 @@ import logging
 import os
 import requests
 from requests.exceptions import HTTPError
-# from rypython.ry365.logger import get_logger
 from O365.excel import Range as _Range
 from O365.excel import WorkBook as _WorkBook
 from O365.excel import WorkSheet as _WorkSheet
@@ -42,7 +41,7 @@ class Range(_Range):
         try:
             super().update()
         except (requests.exceptions.HTTPError, HTTPError):
-            logger.error(f"HTTP Error. Adjusting update shape.")
+            logging.error(f"HTTP Error. Adjusting update shape.")
             max_len = max(len(row) for row in self.values)
             for row in self.values:
                 for i in range(max_len - len(row)):
