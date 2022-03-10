@@ -1,9 +1,9 @@
 from pathlib import Path
 from typing import Tuple, Callable
-from xlsxwriter.format import Format
 
 import pandas as pd
 import xlsxwriter
+from xlsxwriter.format import Format
 
 
 class RexcelWorkbook:
@@ -26,6 +26,15 @@ class RexcelWorkbook:
     def add_format(self, config: dict):
         return self.workbook.add_format(config)
 
+    @staticmethod
+    def get_column_letter(column_index: int):
+        COLS = RexcelWorkbook.COLS
+        if column_index < 26:
+            return COLS[column_index]
+        first_letter = COLS[(column_index // 26) - 1]
+        second_letter = COLS[column_index % 26]
+        return f"{first_letter}{second_letter}"
+
     def add_worksheet_by_dataframe(
             self,
             df: pd.DataFrame,
@@ -33,22 +42,42 @@ class RexcelWorkbook:
             column_widths: list,
             include_index: bool = False,
             format_rows: Tuple[Callable, Format] = None,
+            format_columns: dict = None,
             formula_columns: dict = None,
             conditional_formatting: dict = None,
             hidden_rows: list = None,
-            hidden_columns: list = None
+            hidden_columns: list = None,
+            header_calculations: list = None,
+            skip_rows: int = 0,
+            freeze_panes: Tuple[int, int] = None
     ):
         hidden_rows = hidden_rows or []
         hidden_columns = hidden_columns or []
+        header_calculations = header_calculations or []
         df = df.where(pd.notnull(df), '')
+        columns = df.columns.tolist()
+        row_number = skip_rows
         format_test, row_format = format_rows if format_rows else (None, None)
         if include_index:
             df = df.reset_index()
         wks = self.workbook.add_worksheet(name=worksheet_name)
-        bold = self.workbook.add_format({'bold': 1})
+        FORMATS = {
+            'bold': self.workbook.add_format({'bold': 1}),
+            'text': self.workbook.add_format({'num_format': '@'}),
+            'percent': self.workbook.add_format({'num_format': 9}),
+            'integer': self.workbook.add_format({'num_format': 1}),
+            'decimal': self.workbook.add_format({'num_format': 2})
+        }
         if column_widths:
             for first, last, width in column_widths:
                 wks.set_column(first, last, width)
+
+        if header_calculations:
+            for cell, write_func, cell_text, cell_format in header_calculations:
+                cell_format = FORMATS.get(cell_format)
+                write_func = getattr(wks, write_func)
+                write_func(cell, cell_text, cell_format)
+
         columns = df.columns.tolist()
         if formula_columns is not None:
             for formula_column in formula_columns:
@@ -57,12 +86,12 @@ class RexcelWorkbook:
             if not header or header == 'index':
                 continue
             wks.write(
-                f"{self.COLS[j]}1",
+                f"{self.get_column_letter(j)}{row_number + 1}",
                 header,
-                bold
+                FORMATS.get('bold')
             )
         rows = df.values.tolist()
-        row_number = 1
+        row_number += 1
         col_number = 0
         write_funcs = {
             str: wks.write_string,
@@ -79,9 +108,16 @@ class RexcelWorkbook:
                     col_number + offset,
                     cell
                 ]
-                if format_rows is not None and format_test(row_number):
+                if row_format is not None and format_test(row_number):
                     cell_info.append(row_format)
+                if format_columns and (column_format := format_columns.get(columns[offset])):
+                    column_format = FORMATS.get(column_format)
+                    cell_info.append(column_format)
                 write_func = write_funcs.get(type(cell))
+                if cell and isinstance(cell, str) and cell[0] == '=':
+                    write_func = wks.write_formula
+                if cell == "":
+                    write_func = wks.write_blank
                 write_func(
                     *cell_info
                 )
@@ -109,4 +145,7 @@ class RexcelWorkbook:
             wks.set_row(hidden_row, None, None, {'hidden': True})
         for hidden_column in hidden_columns:
             wks.set_column(f"{hidden_column}:{hidden_column}", None, None, {'hidden': True})
+        if freeze_panes:
+            freeze_row, freeze_column = freeze_panes
+            wks.freeze_panes(freeze_row, freeze_column)
         self.worksheets.append(wks)
