@@ -12,7 +12,7 @@ from O365.connection import MSGraphProtocol
 
 from rypython.ry365.sharepoint import Sharepoint
 
-logging.basicConfig(level=os.environ.get('LOGLEVEL', 'WARNING'))
+logging.basicConfig(level=os.environ.get('LOGLEVEL', 'INFO'))
 
 RYPYTHON_CONFIG_PATH = os.environ.get(
     'RYPYTHON_CONFIG_PATH',
