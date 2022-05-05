@@ -144,6 +144,7 @@ class RexcelWorkbook:
                             cell,
                             data_validation
                         )
+                    offset += 1
             if comment_column is not None:
                 wks.write_blank(
                     row_number,
