@@ -84,6 +84,9 @@ class RexcelWorkbook:
         if formula_columns is not None:
             for formula_column in formula_columns:
                 columns.append(formula_column)
+        if data_validation_columns is not None:
+            for data_validation_column in data_validation_columns:
+                columns.append(data_validation_column)
         if comment_column is not None:
             columns.append(comment_column)
         for j, header in enumerate(columns):
