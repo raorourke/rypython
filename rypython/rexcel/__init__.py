@@ -38,8 +38,8 @@ class RexcelWorkbook:
     def add_worksheet_by_dataframe(
             self,
             df: pd.DataFrame,
-            worksheet_name: str,
-            column_widths: list,
+            worksheet_name: str = 'Master',
+            column_widths: list = None,
             include_index: bool = False,
             format_rows: Tuple[Callable, Format] = None,
             format_columns: dict = None,
@@ -49,13 +49,14 @@ class RexcelWorkbook:
             hidden_columns: list = None,
             header_calculations: list = None,
             skip_rows: int = 0,
-            freeze_panes: Tuple[int, int] = None
+            freeze_panes: Tuple[int, int] = None,
+            data_validation_columns: dict = None,
+            comment_column: str = None
     ):
         hidden_rows = hidden_rows or []
         hidden_columns = hidden_columns or []
         header_calculations = header_calculations or []
         df = df.where(pd.notnull(df), '')
-        columns = df.columns.tolist()
         row_number = skip_rows
         format_test, row_format = format_rows if format_rows else (None, None)
         if include_index:
@@ -66,7 +67,8 @@ class RexcelWorkbook:
             'text': self.workbook.add_format({'num_format': '@'}),
             'percent': self.workbook.add_format({'num_format': 9}),
             'integer': self.workbook.add_format({'num_format': 1}),
-            'decimal': self.workbook.add_format({'num_format': 2})
+            'decimal': self.workbook.add_format({'num_format': 2}),
+            'locked': self.workbook.add_format({'locked': True})
         }
         if column_widths:
             for first, last, width in column_widths:
@@ -82,6 +84,8 @@ class RexcelWorkbook:
         if formula_columns is not None:
             for formula_column in formula_columns:
                 columns.append(formula_column)
+        if comment_column is not None:
+            columns.append(comment_column)
         for j, header in enumerate(columns):
             if not header or header == 'index':
                 continue
@@ -132,6 +136,20 @@ class RexcelWorkbook:
                         ]
                         wks.write_formula(*cell_info)
                     offset += 1
+            if data_validation_columns is not None:
+                for row_test, data_validation in data_validation_columns.values():
+                    if row_test(row):
+                        cell = f"{self.get_column_letter(offset)}{row_number}"
+                        wks.data_validation(
+                            cell,
+                            data_validation
+                        )
+            if comment_column is not None:
+                wks.write_blank(
+                    row_number,
+                    col_number + offset,
+                    ""
+                )
             row_number += 1
         if conditional_formatting:
             for format_range, config in conditional_formatting.items():

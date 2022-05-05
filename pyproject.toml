@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rypython"
-version = "1.4.1"
+version = "1.4.2"
 description = "Miscellaneous python tools"
 authors = ["Ryan O'Rourke <ryan@rypy.dev>"]
 
@@ -10,6 +10,7 @@ pandas = "^1.2.1"
 O365 = "^2.0.18"
 XlsxWriter = "^3.0.2"
 PyYAML = "^6.0"
+openpyxl = "^3.0.9"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
