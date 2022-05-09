@@ -154,6 +154,7 @@ class RexcelWorkbook:
                     col_number + offset,
                     ""
                 )
+                offset += 1
             row_number += 1
         if conditional_formatting:
             for format_range, config in conditional_formatting.items():
