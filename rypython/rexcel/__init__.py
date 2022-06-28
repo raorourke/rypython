@@ -90,7 +90,7 @@ class RexcelWorkbook:
         if comment_column is not None:
             columns.append(comment_column)
         for j, header in enumerate(columns):
-            if not header or header == 'index':
+            if not header or header.lower() in ('index',) or 'unnamed:' in header.lower():
                 continue
             wks.write(
                 f"{self.get_column_letter(j)}{row_number + 1}",
