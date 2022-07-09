@@ -141,18 +141,18 @@ class O365Account(Account):
         return subfolder_drive
 
     @staticmethod
-    def get_item_by_url(item_path: str, library_map: dict = None):
+    def get_item_by_url(item_path: str, library_map: dict = None, doc_library: str = None):
         pattern = r'^.*\/sites\/(?P<site>[0-9.\-A-Za-z]+)\/(?:[0-9.\-A-Za-z\s]+)\/(?P<folder_path>.*)$'
         site, lib_name, *item_path = unquote(item_path).split('/')[4:]
         item_path = '/'.join(item_path)
         account = O365Account(site=site)
-        doc_library = None
+        doc_library = account.get_document_library_by_name(doc_library) if doc_library is not None else doc_library
         if lib_name == 'Shared Documents':
-            doc_library = account.site.get_default_document_library()
+            doc_library = doc_library or account.site.get_default_document_library()
         if lib_name != 'Shared Documents':
             if library_map:
                 lib_name = library_map.get(lib_name, lib_name)
-            doc_library = account.get_document_library_by_name(lib_name)
+            doc_library = doc_library or account.get_document_library_by_name(lib_name)
         if not doc_library:
             raise ValueError(f"Could not find document library named {lib_name} on site {site}!")
         return doc_library.get_item_by_path(item_path)
