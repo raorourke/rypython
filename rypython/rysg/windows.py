@@ -19,8 +19,10 @@ class NewTab:
 class NewTabGroup:
     def __init__(self, tabs: List[NewTab]):
         self.tab_group = sg.TabGroup(
-            tab.config
-            for tab in tabs
+            [
+                tab.config
+                for tab in tabs
+            ]
         )
 
     @property
