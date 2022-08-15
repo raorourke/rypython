@@ -28,7 +28,7 @@ class NewTabGroup:
     @property
     def config(self):
         return [
-            self.tab_group
+            [self.tab_group]
         ]
 
 
