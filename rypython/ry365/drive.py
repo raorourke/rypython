@@ -31,6 +31,15 @@ class Folder(_Folder):
         else:
             return File
 
+    @staticmethod
+    def recursive_delete(folder: _Folder):
+        for item in folder.get_items():
+            if item.is_folder:
+                Folder.recursive_delete(item)
+            item.delete()
+        folder.delete()
+
+
 
 class Drive(_Drive):
     def __init__(self, *, parent=None, con=None, **kwargs):
