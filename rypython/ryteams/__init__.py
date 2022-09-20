@@ -57,7 +57,7 @@ class AdaptiveContainer:
         }
 
 
-class AdaptiveBulletList:
+class AdaptiveBulletedList:
     def __init__(
             self,
             items: List[str],
@@ -104,16 +104,16 @@ class AdaptiveBulletList:
 class AdaptiveCard:
     def __init__(
             self,
+            bot_link: str,
             title: str,
             size: str = 'ExtraLarge',
             weight: str = 'Bolder'
     ):
+        self.message = teams.connectorcard(bot_link)
         self.title = title
         self.size = size
         self.weight = weight
-        self.body = [
-            AdaptiveTextBlock
-        ]
+        self.body = []
 
     @property
     def json(self):
@@ -135,4 +135,48 @@ class AdaptiveCard:
             "version": "1.0"
         }
 
-    def add_text_block(self):
+    def add_text_block(
+            self,
+            text: str,
+            wrap: bool = True,
+            weight: str = 'Bolder'
+    ):
+        self.body.append(
+            AdaptiveTextBlock(text, wrap, weight)
+        )
+
+    def add_bulleted_list(
+            self,
+            items: List[str],
+            header: AdaptiveTextBlock = None,
+            tfunc: Callable[[str], str] = None,
+            wrap: bool = True,
+            spacing: str = 'Small',
+            weight: str = 'Default'
+    ):
+        self.body.append(
+            AdaptiveBulletedList(
+                items,
+                header,
+                tfunc,
+                wrap,
+                spacing,
+                weight
+            )
+        )
+
+    @property
+    def payload(self):
+        return {
+            'type': 'message',
+            'attachments': [
+                {
+                    'contentType': 'application/vnd.microsoft.card.adaptive',
+                    'content': self.json
+                }
+            ]
+        }
+
+    def send(self):
+        self.message.payload = self.payload
+        self.message.send()
