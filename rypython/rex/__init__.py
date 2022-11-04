@@ -3,7 +3,7 @@ import re
 def stringify(q: str):
     return q if isinstance(q, str) else str(q)
 
-def capture_all(pattern: str, query: str, allow_empty: bool = True):
+def capture_all(pattern: str, query: str, allow_empty: bool = True, flatten: bool = False):
     query = stringify(query)
     r = re.compile(pattern)
     s = [
@@ -16,6 +16,10 @@ def capture_all(pattern: str, query: str, allow_empty: bool = True):
             if not value and not allow_empty:
                 continue
             d.setdefault(key, []).append(value)
+    if flatten:
+        for key, value in d.items():
+            if value and len(value) == 1:
+                d[key] = value[0]
     return d
 
 def is_format(pattern: str, query: str):
