@@ -18,8 +18,11 @@ def capture_all(pattern: str, query: str, allow_empty: bool = True, flatten: boo
             d.setdefault(key, []).append(value)
     if flatten:
         for key, value in d.items():
-            if value and len(value) == 1:
-                d[key] = value[0]
+            if isinstance(value, list):
+                if len(value) == 1:
+                    d[key] = value[0]
+                if len(value) == 0:
+                    d[key] = None
     return d
 
 def is_format(pattern: str, query: str):
