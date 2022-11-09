@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rypython"
-version = "1.7.2"
+version = "1.7.3"
 description = "Miscellaneous python tools"
 authors = ["Ryan O'Rourke <ryan@rypy.dev>"]
 
@@ -14,6 +14,8 @@ openpyxl = "^3.0.9"
 PySimpleGUI = "^4.60.3"
 pymsteams = "^0.2.1"
 pendulum = "^2.1.2"
+lxml = "^4.9.1"
+html5lib = "^1.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

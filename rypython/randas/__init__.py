@@ -1,11 +1,12 @@
-import pandas as pd
 import os
 from pathlib import Path
-from O365.drive import File
 from typing import Union
+from urllib.parse import urlparse
+
+import pandas as pd
+from O365.drive import File
 
 from rypython.ry365 import WorkBook
-
 
 DEFAULT_DOWNLOAD_DIR = os.environ.get('RYPYTHON_DEFAULT_DOWNLOAD_DIR', Path.home() / 'Downloads')
 
@@ -28,6 +29,30 @@ def read_excel365(xl_file: Union[File, WorkBook], sheet_name: str = False, skip_
     df = pd.DataFrame(values, columns=cols)
     df.range = _range
     return df
+
+
+class HTMLDataFrame:
+    def __init__(self, url: str):
+        self.url = urlparse(url)
+        self.dfs = pd.read_html(url)
+
+    def export(self, output_dir: Path = None, filename: str = None):
+        output_dir = output_dir or DEFAULT_DOWNLOAD_DIR
+        filename = filename or self.url.path.replace('/', '_')
+        outfile = output_dir / f"{filename}.xlsx"
+        table_count = 1
+        with pd.ExcelWriter(outfile, engine='xlsxwriter') as writer:
+            for table in self.dfs:
+                table.columns = table.iloc[0]
+                table = table.drop(table.index[0])
+                if table.empty:
+                    continue
+                table.to_excel(
+                    writer,
+                    sheet_name=f"Table {table_count}",
+                    index=False
+                )
+                table_count += 1
 
 
 class DataFrame:
