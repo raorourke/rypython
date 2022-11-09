@@ -45,8 +45,13 @@ class HTMLDataFrame:
         table_count = 1
         with pd.ExcelWriter(outfile, engine='xlsxwriter') as writer:
             for table in self.dfs:
-                table.columns = table.iloc[0]
-                table = table.drop(table.index[0])
+                first_column = table.columns[0]
+                if all(
+                    l.is_digit()
+                    for l in first_column
+                ):
+                    table.columns = table.iloc[0]
+                    table = table.drop(table.index[0])
                 if table.empty:
                     continue
                 table.to_excel(
