@@ -39,7 +39,9 @@ class HTMLDataFrame:
     def export(self, output_dir: Path = None, filename: str = None):
         output_dir = output_dir or DEFAULT_DOWNLOAD_DIR
         filename = filename or self.url.path.replace('/', '_')
-        outfile = output_dir / f"{filename}.xlsx"
+        if not filename.endswith('.xlsx'):
+            filename = f"{filename}.xlsx"
+        outfile = output_dir / filename
         table_count = 1
         with pd.ExcelWriter(outfile, engine='xlsxwriter') as writer:
             for table in self.dfs:
