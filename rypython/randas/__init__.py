@@ -58,6 +58,15 @@ class HTMLDataFrame:
         outfile = output_dir / filename
         table_count = 1
         with pd.ExcelWriter(outfile, engine='xlsxwriter') as writer:
+            source_df = pd.DataFrame(
+                values=[[self.url.path]],
+                columns=['Source']
+            )
+            source_df.to_excel(
+                writer,
+                sheet_name='Source',
+                index=False
+            )
             for table in self.dfs:
                 first_column = table.columns[0]
                 if (not isinstance(first_column, str)) or all(
