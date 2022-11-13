@@ -60,7 +60,7 @@ class HTMLDataFrame:
         with pd.ExcelWriter(outfile, engine='xlsxwriter') as writer:
             for table in self.dfs:
                 first_column = table.columns[0]
-                if all(
+                if (not isinstance(first_column, str)) or all(
                         l.isdigit()
                         for l in first_column
                 ):
