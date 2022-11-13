@@ -74,7 +74,7 @@ class HTMLDataFrame:
                     index=False
                 )
                 table_count += 1
-            if items_df := self.get_list_items():
+            if (items_df := self.get_list_items()) is not None:
                 items_df.to_excel(
                     writer,
                     sheet_name='Bulleted Lists',
