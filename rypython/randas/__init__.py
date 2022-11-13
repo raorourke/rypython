@@ -4,7 +4,9 @@ from typing import Union
 from urllib.parse import urlparse
 
 import pandas as pd
+import requests
 from O365.drive import File
+from bs4 import BeautifulSoup as bs
 
 from rypython.ry365 import WorkBook
 
@@ -36,6 +38,18 @@ class HTMLDataFrame:
         self.url = urlparse(url)
         self.dfs = pd.read_html(url)
 
+    def get_list_items(self):
+        items = []
+        r = requests.get(self.url.geturl())
+        soup = bs(r.text, 'lxml')
+        uls = soup.find_all('ul')
+        for ul in uls:
+            for li in ul.find_all('li'):
+                if item := li.text:
+                    items.append(item)
+        if items:
+            return pd.DataFrame(items, columns=['List Items'])
+
     def export(self, output_dir: Path = None, filename: str = None):
         output_dir = output_dir or DEFAULT_DOWNLOAD_DIR
         filename = filename or self.url.path.replace('/', '_')
@@ -47,8 +61,8 @@ class HTMLDataFrame:
             for table in self.dfs:
                 first_column = table.columns[0]
                 if all(
-                    l.is_digit()
-                    for l in first_column
+                        l.is_digit()
+                        for l in first_column
                 ):
                     table.columns = table.iloc[0]
                     table = table.drop(table.index[0])
@@ -60,6 +74,12 @@ class HTMLDataFrame:
                     index=False
                 )
                 table_count += 1
+            if items_df := self.get_list_items():
+                items_df.to_excel(
+                    writer,
+                    sheet_name='Bulleted Lists',
+                    index=False
+                )
 
 
 class DataFrame:

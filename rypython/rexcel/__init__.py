@@ -51,6 +51,7 @@ class RexcelWorkbook:
             skip_rows: int = 0,
             freeze_panes: Tuple[int, int] = None,
             data_validation_columns: dict = None,
+            right_df: pd.DataFrame = None,
             comment_column: str = None
     ):
         hidden_rows = hidden_rows or []
@@ -87,6 +88,8 @@ class RexcelWorkbook:
         if data_validation_columns is not None:
             for data_validation_column in data_validation_columns:
                 columns.append(data_validation_column)
+        if right_df is not None:
+            columns.extend(right_df.columns.tolist())
         if comment_column is not None:
             columns.append(comment_column)
         for j, header in enumerate(columns):
@@ -98,6 +101,7 @@ class RexcelWorkbook:
                 FORMATS.get('bold')
             )
         rows = df.values.tolist()
+        right_rows = right_df.values.tolist() if right_df is not None else right_df
         row_number += 1
         col_number = 0
         write_funcs = {
@@ -105,7 +109,7 @@ class RexcelWorkbook:
             bool: wks.write_boolean,
             int: wks.write_number
         }
-        for row in rows:
+        for i, row in enumerate(rows):
             offset = 0
             for j, cell in enumerate(row):
                 if type(cell) not in write_funcs:
@@ -147,6 +151,24 @@ class RexcelWorkbook:
                             cell,
                             data_validation
                         )
+                    offset += 1
+            if right_rows is not None:
+                for k, cell in enumerate(right_rows[i]):
+                    if type(cell) not in write_funcs:
+                        cell = str(cell)
+                    cell_info = [
+                        row_number,
+                        col_number + offset,
+                        cell
+                    ]
+                    write_func = write_funcs.get(type(cell))
+                    if cell and isinstance(cell, str) and cell[0] == '=':
+                        write_func = wks.write_formula
+                    if cell == "":
+                        write_func = wks.write_blank
+                    write_func(
+                        *cell_info
+                    )
                     offset += 1
             if comment_column is not None:
                 wks.write_blank(
