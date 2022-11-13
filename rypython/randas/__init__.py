@@ -61,7 +61,7 @@ class HTMLDataFrame:
             for table in self.dfs:
                 first_column = table.columns[0]
                 if all(
-                        l.is_digit()
+                        l.isdigit()
                         for l in first_column
                 ):
                     table.columns = table.iloc[0]
