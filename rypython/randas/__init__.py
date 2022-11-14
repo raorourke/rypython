@@ -5,10 +5,14 @@ from urllib.parse import urlparse
 
 import pandas as pd
 import requests
+import logging
+import re
 from O365.drive import File
 from bs4 import BeautifulSoup as bs
 
 from rypython.ry365 import WorkBook
+
+logging.basicConfig(level=logging.INFO)
 
 DEFAULT_DOWNLOAD_DIR = os.environ.get('RYPYTHON_DEFAULT_DOWNLOAD_DIR', Path.home() / 'Downloads')
 
@@ -36,7 +40,20 @@ def read_excel365(xl_file: Union[File, WorkBook], sheet_name: str = False, skip_
 class HTMLDataFrame:
     def __init__(self, url: str):
         self.url = urlparse(url)
-        self.dfs = pd.read_html(url)
+        self.dfs = self._parse_url()
+
+    def _parse_url(self):
+        try:
+            return pd.read_html(self.url.geturl())
+        except AttributeError as e:
+            logging.error(f"Error parsing {self.url.geturl()}: {e}!")
+            r = requests.get(self.url.geturl())
+            text = r.text
+            rowspan_pattern = r'(?P<rowspan>rowspan="\d+)(&([a-z])+;)+"'
+            text = re.sub(rowspan_pattern, r'\g<rowspan>"', text)
+            colspan_pattern = r'(?P<colspan>colspan="\d+)(&([a-z])+;)+"'
+            text = re.sub(colspan_pattern, r'\g<colspan>"', text)
+            return pd.read_html(text)
 
     def get_list_items(self):
         items = []
