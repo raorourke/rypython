@@ -59,7 +59,7 @@ class HTMLDataFrame:
         table_count = 1
         with pd.ExcelWriter(outfile, engine='xlsxwriter') as writer:
             source_df = pd.DataFrame(
-                [[self.url.path]],
+                [[self.url.geturl()]],
                 columns=['Source']
             )
             source_df.to_excel(
