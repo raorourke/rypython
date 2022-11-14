@@ -1,18 +1,24 @@
+import logging
 import os
+import re
 from pathlib import Path
 from typing import Union
+from urllib.error import HTTPError
 from urllib.parse import urlparse
 
 import pandas as pd
 import requests
-import logging
-import re
 from O365.drive import File
 from bs4 import BeautifulSoup as bs
 
 from rypython.ry365 import WorkBook
 
 logging.basicConfig(level=logging.INFO)
+
+HEADER = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.75 Safari/537.36",
+    "X-Requested-With": "XMLHttpRequest"
+}
 
 DEFAULT_DOWNLOAD_DIR = os.environ.get('RYPYTHON_DEFAULT_DOWNLOAD_DIR', Path.home() / 'Downloads')
 
@@ -40,32 +46,48 @@ def read_excel365(xl_file: Union[File, WorkBook], sheet_name: str = False, skip_
 class HTMLDataFrame:
     def __init__(self, url: str):
         self.url = urlparse(url)
-        self.dfs = self._parse_url()
+        self.tables = self._parse_url() or []
 
-    def _parse_url(self):
+    def _parse_url(self, text: str = None):
         try:
-            return pd.read_html(self.url.geturl())
+            return pd.read_html(text or self.url.geturl())
         except AttributeError as e:
             logging.error(f"Error parsing {self.url.geturl()}: {e}!")
-            r = requests.get(self.url.geturl())
+            r = requests.get(self.url.geturl(), headers=HEADER)
             text = r.text
             rowspan_pattern = r'(?P<rowspan>rowspan="\d+)(&([a-z])+;)+"'
             text = re.sub(rowspan_pattern, r'\g<rowspan>"', text)
             colspan_pattern = r'(?P<colspan>colspan="\d+)(&([a-z])+;)+"'
             text = re.sub(colspan_pattern, r'\g<colspan>"', text)
             return pd.read_html(text)
+        except HTTPError as e:
+            logging.error(f"Error parsing {self.url.geturl()}: {e}!")
+            r = requests.get(self.url.geturl(), headers=HEADER)
+            self._parse_url(text=r.text)
+        except ValueError as e:
+            logging.error(f"Error parsing tables for {self.url.geturl()}: {e}!")
+            return []
 
     def get_list_items(self):
-        items = []
-        r = requests.get(self.url.geturl())
+        items = {}
+        r = requests.get(self.url.geturl(), headers=HEADER)
         soup = bs(r.text, 'lxml')
         uls = soup.find_all('ul')
         for ul in uls:
             for li in ul.find_all('li'):
                 if item := li.text:
-                    items.append(item)
+                    items.setdefault('Bulleted Lists', []).append(item)
+        ols = soup.find_all('ol')
+        for ol in ols:
+            for li in ol.find_all('li'):
+                if item := li.text:
+                    items.setdefault('Ordered Lists', []).append(item)
         if items:
-            return pd.DataFrame(items, columns=['List Items'])
+            return {
+                list_type: pd.DataFrame(list_items, columns=['List Items'])
+                for list_type, list_items in items.items()
+            }
+        return items
 
     def export(self, output_dir: Path = None, filename: str = None):
         output_dir = output_dir or DEFAULT_DOWNLOAD_DIR
@@ -84,7 +106,7 @@ class HTMLDataFrame:
                 sheet_name='Source',
                 index=False
             )
-            for table in self.dfs:
+            for table in self.tables:
                 first_column = table.columns[0]
                 if (not isinstance(first_column, str)) or all(
                         l.isdigit()
@@ -100,10 +122,10 @@ class HTMLDataFrame:
                     index=False
                 )
                 table_count += 1
-            if (items_df := self.get_list_items()) is not None:
-                items_df.to_excel(
+            for list_type, list_df in self.get_list_items().items():
+                list_df.to_excel(
                     writer,
-                    sheet_name='Bulleted Lists',
+                    sheet_name=list_type,
                     index=False
                 )
 
