@@ -52,7 +52,9 @@ class RexcelWorkbook:
             freeze_panes: Tuple[int, int] = None,
             data_validation_columns: dict = None,
             right_df: pd.DataFrame = None,
-            comment_column: str = None
+            comment_column: str = None,
+            header_format: Format = None,
+            hide_right_columns: str = None
     ):
         hidden_rows = hidden_rows or []
         hidden_columns = hidden_columns or []
@@ -98,7 +100,7 @@ class RexcelWorkbook:
             wks.write(
                 f"{self.get_column_letter(j)}{row_number + 1}",
                 header,
-                FORMATS.get('bold')
+                header_format or FORMATS.get('bold')
             )
         rows = df.values.tolist()
         right_rows = right_df.values.tolist() if right_df is not None else right_df
@@ -193,4 +195,13 @@ class RexcelWorkbook:
         if freeze_panes:
             freeze_row, freeze_column = freeze_panes
             wks.freeze_panes(freeze_row, freeze_column)
+        if hide_right_columns is not None:
+            wks.set_column(
+                hide_right_columns,
+                None,
+                None,
+                {
+                    'hidden': True
+                }
+            )
         self.worksheets.append(wks)

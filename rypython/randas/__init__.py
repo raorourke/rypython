@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Union
 from urllib.error import HTTPError
 from urllib.parse import urlparse
+from typing import Callable
 
 import pandas as pd
 import requests
@@ -89,7 +90,12 @@ class HTMLDataFrame:
             }
         return items
 
-    def export(self, output_dir: Path = None, filename: str = None):
+    def export(
+            self,
+            output_dir: Path = None,
+            filename: str = None,
+            transform_df: Callable[[pd.DataFrame], pd.DataFrame] = None
+    ):
         output_dir = output_dir or DEFAULT_DOWNLOAD_DIR
         filename = filename or self.url.path.replace('/', '_')
         if not filename.endswith('.xlsx'):
@@ -116,6 +122,8 @@ class HTMLDataFrame:
                     table = table.drop(table.index[0])
                 if table.empty:
                     continue
+                if transform_df is not None:
+                    table = transform_df(table)
                 table.to_excel(
                     writer,
                     sheet_name=f"Table {table_count}",
