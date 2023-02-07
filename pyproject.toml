@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rypython"
-version = "1.7.11"
+version = "2.0.0-alpha.0"
 description = "Miscellaneous python tools"
 authors = ["Ryan O'Rourke <ryan@rypy.dev>"]
 
