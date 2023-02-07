@@ -8,7 +8,10 @@ from rypython.randas import DataFrame
 from rypython.ry365 import O365Account
 from rypython.rydb.tables import RyDBTable
 
-LOCAL_WDIR = os.environ.get("RYDB_LOCAL", Path.home() / "Downloads")
+DEFAULT_DOWNLOAD_DIR = os.environ.get(
+    'RYPYTHON_DEFAULT_DOWNLOAD_DIR',
+    Path.home() / 'Downloads'
+)
 
 
 class RyDBSource:
@@ -29,7 +32,7 @@ class O365DB(RyDBSource):
     def replace(self, tables: Dict[str, pd.DataFrame]) -> None:
         folder = self.folder
         existing_db_file = folder.get_item(self.db_filename)
-        new_local_db_file = LOCAL_WDIR / self.db_filename
+        new_local_db_file = DEFAULT_DOWNLOAD_DIR / self.db_filename
         with pd.ExcelWriter(
                 new_local_db_file,
                 engine="xlsxwriter"
