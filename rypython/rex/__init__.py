@@ -3,7 +3,12 @@ import re
 def stringify(q: str):
     return q if isinstance(q, str) else str(q)
 
-def capture_all(pattern: str, query: str, allow_empty: bool = True, flatten: bool = False):
+def capture_all(
+        pattern: str,
+        query: str,
+        allow_empty: bool = True,
+        flatten: bool = False
+):
     query = stringify(query)
     r = re.compile(pattern)
     s = [
