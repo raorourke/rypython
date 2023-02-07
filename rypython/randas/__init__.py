@@ -21,10 +21,17 @@ HEADER = {
     "X-Requested-With": "XMLHttpRequest"
 }
 
-DEFAULT_DOWNLOAD_DIR = os.environ.get('RYPYTHON_DEFAULT_DOWNLOAD_DIR', Path.home() / 'Downloads')
+DEFAULT_DOWNLOAD_DIR = os.environ.get(
+    'RYPYTHON_DEFAULT_DOWNLOAD_DIR',
+    Path.home() / 'Downloads'
+)
 
 
-def read_excel365(xl_file: Union[File, WorkBook], sheet_name: str = False, skip_rows: int = 0):
+def read_excel365(
+        xl_file: Union[File, WorkBook],
+        sheet_name: str = False,
+        skip_rows: int = 0
+):
     wb = WorkBook(xl_file) if isinstance(xl_file, File) else xl_file
     if sheet_name is None:
         wss = wb.get_worksheets()
@@ -139,16 +146,49 @@ class HTMLDataFrame:
 
 
 class DataFrame:
+    """
+    The ``DataFrame`` class provides a quick process for
+    downloading and extracting information from Excel files on SharePoint.
+    Pulling the data directly from the files is possible, but generally very slow.
+    By downloading the file, it can be loaded directly with ``pandas``.
+
+    Parameters
+    ----------
+    source_file: File
+    download_dir: Path
+    sheet_name: str
+    **options: dict
+
+    Attributes
+    ----------
+    source_file: File
+    download_dir: Path
+    sheet_name: str
+    **options: dict
+
+    Examples
+    --------
+    ``DataFrame`` is designed for use as a context manager.
+    >>> with DataFrame(
+    >>>        source_file,
+    >>>        download_dir,
+    >>>        sheet_name,
+    >>>        **options
+    >>>        ) as wb:
+    >>>            wb.do_stuff_with_workbook()
+    """
     def __init__(
             self,
             source_file: File,
             download_dir: Path = DEFAULT_DOWNLOAD_DIR,
-            sheet_name: str = None
+            sheet_name: str = None,
+            **options
     ):
         self.source_file = source_file
         self.file_type = source_file.name.rsplit('.', 1)[1].lower()
         self.download_dir = download_dir
         self.sheet_name = sheet_name
+        self.options = options
 
     def __enter__(self):
         self.source_file.download(self.download_dir)
@@ -158,10 +198,14 @@ class DataFrame:
 
     def _parse_source_file(self):
         if self.file_type == 'csv':
-            return pd.read_csv(self.local_file)
+            return pd.read_csv(
+                self.local_file,
+                **self.options
+            )
         return pd.read_excel(
             self.local_file,
-            sheet_name=self.sheet_name
+            sheet_name=self.sheet_name,
+            **self.options
         )
 
     def __exit__(self, type, value, traceback):
