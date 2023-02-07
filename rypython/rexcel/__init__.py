@@ -14,10 +14,55 @@ DataFrameIndex = Any
 
 
 @dataclass
+class SheetPosition:
+    start: str
+
+    def __post_init__(self):
+        self.row = int(''.join(l for l in self.start if l.isdigit()))
+        self.columns = string.ascii_uppercase
+        column = self.start.replace(str(self.row), "")
+        self.column = self.columns.index(column)
+        self.left_column = self.column
+        self.right_column = self.left_column
+
+    def up(self):
+        self.row -= 1
+
+    def down(
+            self,
+            return_left: bool = True,
+            return_right: bool = False
+    ):
+        self.row += 1
+        if return_left:
+            self.return_left()
+        if return_right:
+            self.return_right()
+
+    def right(self):
+        self.column += 1
+        self.right_column = max(self.column, self.right_column)
+
+    def left(self):
+        self.column -= 1
+
+    def return_left(self):
+        self.column = self.left_column
+
+    def return_right(self):
+        self.column = self.right_column - 1
+
+    @property
+    def pos(self):
+        column = self.columns[self.column]
+        return f"{column}{self.row}"
+
+
+@dataclass
 class RexcelFormat:
     test_func: Callable
     config: dict
-    format_type: str  # TODO: Set up as ``Enum``
+    format_type: str = "row"  # TODO: Set up as ``Enum``
 
     def get_format(
             self,
@@ -36,28 +81,17 @@ class RexcelWorksheet:
         ``Workbook`` object used to add worksheets
     worksheet_name: str
         Name of new Excel worksheet
+    column_widths: List[Tuple[int, int, int]]
+        List of (start, stop, width) tuples for assigning column widths in the sheet
 
     Attributes
     ----------
-    wb: Workbook
+    workbook: Workbook
         ``Workbook`` object used to add worksheets
     wks: Worksheet
         New worksheet as ``Worksheet`` object
     column_widths: List[Tuple[int, int, int]]
-        List of (start, stop, width) tuples for setting column widths
-
-    BUFFER_FACTOR: float
-        Factor by which to increase production work file count as buffer
-    UTTERANCE_TOTALS: Dict[str,int]
-        Total utterances required for each locale (default
-        is 50000 unless specified in ``UTTERANCE_TOTALS``)
-
-    Examples
-    --------
-    >>> from lex_engineering import Scenarios
-    >>> output_dir = Path.home() / 'Downloads'
-    >>> scenarios = Scenarios('MIT', 'fr-FR')
-    >>> scenarios.get_work_files('standard', output_dir)
+        List of (start, stop, width) tuples for assigning column widths in the sheet
     """
 
     def __init__(
@@ -66,8 +100,8 @@ class RexcelWorksheet:
             worksheet_name: str,
             column_widths: List[Tuple[int, int, int]] = None
     ) -> None:
-        self.wb = workbook
-        self.wks = self.wb.add_worksheet(
+        self.workbook = workbook
+        self.wks = self.workbook.add_worksheet(
             name=worksheet_name
         )
 
@@ -82,8 +116,9 @@ class RexcelWorksheet:
         self.current_row = 1
         self.current_column = 0
 
-        self.data_validation_columns = []
+        self.data_validation_columns = {}
 
+        # TODO: Improve this implementation of Formats
         self.FORMATS = {
             'bold': self.workbook.add_format({'bold': 1}),
             'text': self.workbook.add_format({'num_format': '@'}),
@@ -104,11 +139,12 @@ class RexcelWorksheet:
         Parameters
         ----------
         limit: int
+        row_number: int
 
         Returns
         -------
         Generator[Tuple[str, int], None, None]
-            Returns generator that yields (column_letter, column_number) tuple
+            Returns generator that yields (column_letter, column_number, cell_address) tuple
         """
         BASE_COLUMNS = list(string.ascii_uppercase)
         row_number = str(row_number) if row_number else ""
@@ -121,17 +157,81 @@ class RexcelWorksheet:
                 prefix_offset += 1
             letter_prefix = BASE_COLUMNS[prefix_offset] if prefix_offset >= 0 else ""
             base_letter = BASE_COLUMNS[column_offset]
-            column_letter = f"{letter_prefix}{base_letter}{row_number}"
-            yield column_letter, column_count
+            column_letter = f"{letter_prefix}{base_letter}"
+            cell_address = f"{column_letter}{row_number}"
+            yield column_letter, column_count, cell_address
             column_offset += 1
             column_count += 1
+
+    def get_write_func(self, cell_value: Any, dtype: str = None):
+        if dtype is None:
+            if isinstance(cell_value, (int, float)):
+                return self.wks.write_number
+            if isinstance(cell_value, bool):
+                return self.wks.write_boolean
+            if cell_value == "":
+                return self.wks.write_blank
+            if cell_value.startswith("="):
+                return self.wks.write_formula
+            return self.wks.write_string
+
+    def simple_write_df(
+            self,
+            df: pd.DataFrame,
+            starting_cell: str,
+            header_format: str = "bold",
+            subtotal: str = None
+    ):
+        current = SheetPosition(starting_cell) if isinstance(starting_cell, str) else starting_cell
+        columns = df.columns.tolist()
+        for column_header in columns:
+            self.write_cell(
+                current.pos,
+                'write_string',
+                column_header,
+                header_format
+            )
+            current.right()
+        current.down()
+        subtotal_cells = []
+        for row in df.fillna("").itertuples():
+            for i, cell_value in enumerate(row):
+                if i == 0:
+                    continue
+                if columns[i-1] == subtotal:
+                    subtotal_cells.append(current.pos)
+                write_func = self.get_write_func(cell_value)
+                self.write_cell(
+                    current.pos,
+                    write_func,
+                    cell_value
+                )
+                current.right()
+            current.down()
+        if subtotal is not None:
+            current.return_right()
+            self.write_cell(
+                current.pos,
+                self.wks.write_string,
+                "subtotal",
+                header_format
+            )
+            current.right()
+            subtotal_range = f"{subtotal_cells[0]}:{subtotal_cells[-1]}"
+            self.write_cell(
+                current.pos,
+                self.wks.write_formula,
+                f"=SUM({subtotal_range})"
+            )
+        return current
+
 
     def write_cell(
             self,
             cell: str,
-            write_func: str,
+            write_func: Union[str, Callable],
             cell_text: str,
-            cell_format: str
+            cell_format: str = None
     ) -> None:
         """
         Writes given text to specified cell according to write function and cell format
@@ -148,7 +248,7 @@ class RexcelWorksheet:
             Format for cell ("bold", "text", etc.)
         """
         cell_format = self.FORMATS.get(cell_format)
-        write_func = getattr(self.wks, write_func)
+        write_func = getattr(self.wks, write_func) if isinstance(write_func, str) else write_func
         write_func(cell, cell_text, cell_format)
 
     def add_formula_column(
@@ -197,6 +297,8 @@ class RexcelWorksheet:
             *list_values: str
     ) -> pd.DataFrame:
         """
+        Updates ``df`` with comma-separated list values string where ``row_test`` is True.
+        Adds column header to ``data_validation_columns`` attribute for later use.
 
         Parameters
         ----------
@@ -212,7 +314,7 @@ class RexcelWorksheet:
 
         # Adds data validation column to ``format_only_columns`` list to avoid writing it later
         # TODO: Figure out how to write default values to data validation list cells
-        self.data_validation_columns.append(new_column_name)
+        self.data_validation_columns[new_column_name] = row_test
 
         # Use ``row_test`` function to create mask for vectorized mapping of data validation list values
         mask = df.apply(
@@ -287,7 +389,7 @@ class RexcelWorksheet:
             if any(
                     ignore_string in column_header.lower()
                     for ignore_string in ignore_strings
-            )
+            ):
                 self.write_cell(
                     cell,
                     'write_string',
@@ -359,6 +461,25 @@ class RexcelWorksheet:
                     ):
                         return row_format
 
+    def write_data_validation_list(
+            self,
+            row: DataFrameRow,
+            column_header: str,
+            cell_address: str,
+            cell_value: Any
+    ):
+        if (
+                (row_test := self.data_validation_columns.get(column_header))
+                and (row_test(row))
+        ):
+            self.wks.data_validation(
+                cell_address,
+                {
+                    "validate": "list",
+                    "source": cell_value.split(",")
+                }
+            )
+
     @staticmethod
     def _get_row_edges(df: pd.DataFrame):
         return df.index[0], df.index[-1]
@@ -423,11 +544,22 @@ class RexcelWorksheet:
 
         # Iterate over rows as generator without initializing values list object
         for row in df.fillna("").values:
-
-            for column_offset, cell_value in enumerate(row):
+            row_number = self.current_row
+            column_gen = self._get_column_generator(df.shape[1], row_number)
+            for (column_letter, column_offset, cell_address), cell_value in zip(column_gen, row):
                 cell_value = str(cell_value) if type(cell_value) not in write_funcs else cell_value
-                row_number = self.current_row
+
                 column_header = columns[column_offset]
+
+                # Skips columns flagged earlier as data validation lists
+                if column_header in self.data_validation_columns:
+                    self.write_data_validation_list(
+                        row,
+                        column_header,
+                        cell_address,
+                        cell_value
+                    )
+                    continue
 
                 cell_format = self._get_format(
                     formats,
@@ -494,30 +626,7 @@ class RexcelWorksheet:
 
 class RexcelWorkbook:
     """
-    The Scenarios object is the primary mechanism for viewing and manipulating existing scenarios
 
-    Parameters
-    ----------
-    output_dir: Path
-        Local output directory where resources should be saved (default is None)
-
-    Attributes
-    ----------
-    scenarios: List[Scenario]
-        Parsed list of Scenario objects representing full context of each scenario for given
-        domain-locale pair
-    BUFFER_FACTOR: float
-        Factor by which to increase production work file count as buffer
-    UTTERANCE_TOTALS: Dict[str,int]
-        Total utterances required for each locale (default
-        is 50000 unless specified in ``UTTERANCE_TOTALS``)
-
-    Examples
-    --------
-    >>> from lex_engineering import Scenarios
-    >>> output_dir = Path.home() / 'Downloads'
-    >>> scenarios = Scenarios('MIT', 'fr-FR')
-    >>> scenarios.get_work_files('standard', output_dir)
     """
 
     COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -549,7 +658,6 @@ class RexcelWorkbook:
         second_letter = COLS[column_index % 26]
         return f"{first_letter}{second_letter}"
 
-
     def add_worksheet_by_dataframe(
             self,
             df: pd.DataFrame,
@@ -569,7 +677,8 @@ class RexcelWorkbook:
             right_df: pd.DataFrame = None,
             comment_column: str = None,
             header_format: Format = None,
-            hide_right_columns: str = None
+            hide_right_columns: str = None,
+
     ):
         hidden_rows = hidden_rows or []
         hidden_columns = hidden_columns or []
@@ -579,14 +688,6 @@ class RexcelWorkbook:
         )
         row_number = skip_rows
         format_test, row_format = format_rows if format_rows else (None, None)
-
-        """
-        wks = RexcelWorksheet(
-            self.wb, 
-            worksheet_name,
-            column_widths=column_widths
-        )
-        """
 
         wks = self.wb.add_worksheet(name=worksheet_name)
 
@@ -604,10 +705,6 @@ class RexcelWorkbook:
                 wks.set_column(first, last, width)
 
         if header_calculations:
-            """
-            for cell_config in header_calculations:
-                wks.write_cell(**cell_config)
-            """
             for cell, write_func, cell_text, cell_format in header_calculations:
                 cell_format = FORMATS.get(cell_format)
                 write_func = getattr(wks, write_func)
@@ -617,15 +714,6 @@ class RexcelWorkbook:
         columns = df.columns.tolist()
 
         # Add formula column headers, if present
-        """        
-        for new_column_name, (row_test, formula_func) in formula_columns.items():
-            df = wks.add_formula_column(
-                df,
-                new_column_name,
-                row_test,
-                formula_func
-            )
-        """
         if formula_columns is not None:
             for formula_column in formula_columns:
                 columns.append(formula_column)
@@ -770,7 +858,7 @@ class RexcelWorkbook:
     def add_worksheet(
             self,
             worksheet_name: str,
-            column_widths: List[Tuple[int, int, int]]
+            column_widths: List[Tuple[int, int, int]] = None
     ) -> RexcelWorksheet:
         wks = RexcelWorksheet(
             self.wb,
@@ -780,16 +868,12 @@ class RexcelWorkbook:
         self.new_worksheets[worksheet_name] = wks
         return wks
 
-
-
     def new_add_worksheet_by_dataframe(
             self,
             df: pd.DataFrame,
             worksheet_name: str = 'Master',
             column_widths: list = None,
             include_index: bool = False,
-            format_rows: Tuple[Callable, Format] = None,
-            format_columns: dict = None,
             formula_columns: dict = None,
             conditional_formatting: dict = None,
             hidden_rows: list = None,
@@ -801,20 +885,18 @@ class RexcelWorkbook:
             right_df: pd.DataFrame = None,
             comment_column: str = None,
             header_format: Format = None,
-            hide_right_columns: str = None
+            hide_right_columns: str = None,
+            ignore_strings: List[str] = None,
+            formats: list = None
+
     ):
         hidden_rows = hidden_rows or []
         hidden_columns = hidden_columns or []
         ad_hoc_cells = ad_hoc_cells or []
-        df = df.where(
-            pd.notnull(df), ''
-        )
-        row_number = skip_rows
-        format_test, row_format = format_rows if format_rows else (None, None)
 
         # Register new worksheet
         wks = self.add_worksheet(
-            sheet_name=worksheet_name,
+            worksheet_name=worksheet_name,
             column_widths=column_widths
         )
 
@@ -822,10 +904,8 @@ class RexcelWorkbook:
         for cell_config in ad_hoc_cells:
             wks.write_cell(**cell_config)
 
-
-
-
-        """        
+        # Add formula columns to ``df`` one by one
+        # TODO: Convert these to config object
         for new_column_name, (row_test, formula_func) in formula_columns.items():
             df = wks.add_formula_column(
                 df,
@@ -833,144 +913,90 @@ class RexcelWorkbook:
                 row_test,
                 formula_func
             )
-        """
-        if formula_columns is not None:
-            for formula_column in formula_columns:
-                columns.append(formula_column)
 
-        # Add data validation column headers, if present
-        if data_validation_columns is not None:
-            for data_validation_column in data_validation_columns:
-                columns.append(data_validation_column)
+        # Add data validation columns to ``df`` one by one
+        # TODO: Currently this processes these in the same hard-coded built-ins order. Add ability to reorder columns
+        data_validation_columns = data_validation_columns or {}
+        for new_column_name, (row_test, config) in data_validation_columns.items():
+            if list_values := config.get("source"):
+                df = wks.add_list_data_validation_column(
+                    df,
+                    new_column_name,
+                    row_test,
+                    *list_values
+                )
 
-        # Add right DataFrame column headers, if present
+        # Add ``right_df`` data
         if right_df is not None:
-            columns.extend(right_df.columns.tolist())
+            df = wks.add_right_df(df, right_df)
 
-        # Add comment column header, if present
+        # Add comment column
         if comment_column is not None:
-            columns.append(comment_column)
+            df[comment_column] = ""
 
-        # Write column headers
-        for j, header in enumerate(columns):
-            if not header or header.lower() in ('index',) or 'unnamed:' in header.lower():
-                continue
-            wks.write(
-                f"{self.get_column_letter(j)}{row_number + 1}",
-                header,
-                header_format or FORMATS.get('bold')
+        # Write compiled ``df`` to worksheet
+        wks.write(
+            df,
+            skip_rows=skip_rows,
+            include_index=include_index,
+            header_format=header_format,
+            ignore_strings=ignore_strings,
+            formats=formats,
+            conditional_formats=conditional_formatting,
+            hidden_rows=hidden_rows,
+            hidden_columns=hidden_columns,
+            freeze_pandes=freeze_panes,
+            hide_right_columns=hide_right_columns
+        )
+
+    def add_multiple_dfs(
+            self,
+            worksheet_name,
+            starting_cell,
+            header_format,
+            *dfs,
+            skip_between: int = 1,
+            column_widths=None,
+            subtotal: str = None
+    ):
+        # Register new worksheet
+        wks = self.add_worksheet(
+            worksheet_name=worksheet_name,
+            column_widths=column_widths
+        )
+
+        # List to collect cell addresses for subtotal cells
+        subtotal_cells = []
+
+        # Loop over df list applying them to the worksheet
+        for df in dfs:
+            current_cell = wks.simple_write_df(
+                df,
+                starting_cell,
+                subtotal=subtotal
+            )
+            if subtotal is not None:
+                subtotal_cells.append(current_cell.pos)
+            for _ in range(skip_between):
+                current_cell.down()
+            starting_cell = current_cell
+
+        # Add total cell if subtotal cells have been collected
+        if subtotal_cells:
+            starting_cell.return_right()
+            wks.write_cell(
+                starting_cell.pos,
+                "write_string",
+                "total",
+                header_format
+            )
+            starting_cell.right()
+            total_range = ",".join(subtotal_cells)
+            wks.write_cell(
+                starting_cell.pos,
+                "write_formula",
+                f"=SUM({total_range})"
             )
 
-        # Create list of DataFrame values
-        # Create index column, as needed
-        if include_index:
-            df = df.reset_index()
-        rows = df.values.tolist()
 
-        # Create list of right DataFrame values, if present
-        right_rows = right_df.values.tolist() if right_df is not None else right_df
 
-        # Increase starting row number to account for header row
-        row_number += 1
-
-        write_funcs = {
-            str: wks.write_string,
-            bool: wks.write_boolean,
-            int: wks.write_number
-        }
-        for i, row in enumerate(rows):
-            col_number = 0
-            for j, cell in enumerate(row):
-                if type(cell) not in write_funcs:
-                    cell = str(cell)
-                cell_info = [
-                    row_number,
-                    col_number,
-                    cell
-                ]
-                if row_format is not None and format_test(row_number):
-                    cell_info.append(row_format)
-                if format_columns and (column_format := format_columns.get(columns[col_number])):
-                    column_format = FORMATS.get(column_format)
-                    cell_info.append(column_format)
-                write_func = write_funcs.get(type(cell))
-                if cell and isinstance(cell, str) and cell[0] == '=':
-                    write_func = wks.write_formula
-                if cell == "":
-                    write_func = wks.write_blank
-                write_func(
-                    *cell_info
-                )
-                col_number += 1
-
-            # Adds formula column info rendered redundant above
-            if formula_columns is not None:
-                for row_test, formula_format in formula_columns.values():
-                    if row_test(row):
-                        cell_info = [
-                            row_number,
-                            col_number,
-                            formula_format(row, row_number)
-                        ]
-                        wks.write_formula(*cell_info)
-                    col_number += 1
-            if data_validation_columns is not None:
-                for row_test, data_validation in data_validation_columns.values():
-                    if row_test(row):
-                        cell = f"{self.get_column_letter(col_number)}{row_number}"
-                        wks.data_validation(
-                            cell,
-                            data_validation
-                        )
-                    col_number += 1
-            if right_rows is not None:
-                for k, cell in enumerate(right_rows[i]):
-                    if type(cell) not in write_funcs:
-                        cell = str(cell)
-                    cell_info = [
-                        row_number,
-                        col_number,
-                        cell
-                    ]
-                    write_func = write_funcs.get(type(cell))
-                    if cell and isinstance(cell, str) and cell[0] == '=':
-                        write_func = wks.write_formula
-                    if cell == "":
-                        write_func = wks.write_blank
-                    write_func(
-                        *cell_info
-                    )
-                    col_number += 1
-            if comment_column is not None:
-                wks.write_blank(
-                    row_number,
-                    col_number,
-                    ""
-                )
-                col_number += 1
-            row_number += 1
-        if conditional_formatting:
-            for format_range, config in conditional_formatting.items():
-                if '{end}' in format_range:
-                    format_range = format_range.format(end=len(rows) + 1)
-                wks.conditional_format(
-                    format_range,
-                    config
-                )
-        for hidden_row in hidden_rows:
-            wks.set_row(hidden_row, None, None, {'hidden': True})
-        for hidden_column in hidden_columns:
-            wks.set_column(f"{hidden_column}:{hidden_column}", None, None, {'hidden': True})
-        if freeze_panes:
-            freeze_row, freeze_column = freeze_panes
-            wks.freeze_panes(freeze_row, freeze_column)
-        if hide_right_columns is not None:
-            wks.set_column(
-                hide_right_columns,
-                None,
-                None,
-                {
-                    'hidden': True
-                }
-            )
-        self.worksheets.append(wks)
