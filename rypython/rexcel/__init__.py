@@ -23,7 +23,7 @@ class SheetPosition:
         column = self.start.replace(str(self.row), "")
         self.column = self.columns.index(column)
         self.left_column = self.column
-        self.right_column = self.left_column
+        self.right_column = self.left_column - 1
 
     def up(self):
         self.row -= 1
@@ -41,7 +41,7 @@ class SheetPosition:
 
     def right(self):
         self.column += 1
-        self.right_column = max(self.column, self.right_column)
+        self.right_column = max(self.column, self.right_column) - 1
 
     def left(self):
         self.column -= 1
@@ -50,7 +50,14 @@ class SheetPosition:
         self.column = self.left_column
 
     def return_right(self):
-        self.column = self.right_column - 1
+        self.column = self.right_column
+
+    def current_merge_range(self, width: int = None):
+        left_column = self.columns[self.left_column]
+        right_index = (self.left_column + width - 1) if width is not None else self.right_column
+        right_column = self.columns[right_index]
+        return f"{left_column}{self.row}:{right_column}{self.row}"
+
 
     @property
     def pos(self):
@@ -98,7 +105,8 @@ class RexcelWorksheet:
             self,
             workbook: Workbook,
             worksheet_name: str,
-            column_widths: List[Tuple[int, int, int]] = None
+            column_widths: List[Tuple[int, int, int]] = None,
+            image_config: dict = None
     ) -> None:
         self.workbook = workbook
         self.wks = self.workbook.add_worksheet(
@@ -112,6 +120,9 @@ class RexcelWorksheet:
                     stop,
                     width
                 )
+
+        if image_config is not None:
+            self.insert_image(**image_config)
 
         self.current_row = 1
         self.current_column = 0
@@ -180,19 +191,41 @@ class RexcelWorksheet:
             df: pd.DataFrame,
             starting_cell: str,
             header_format: str = "bold",
-            subtotal: str = None
+            subtitle: str = None,
+            subtotal: str = None,
+            apply_columns: bool = True
     ):
         current = SheetPosition(starting_cell) if isinstance(starting_cell, str) else starting_cell
         columns = df.columns.tolist()
-        for column_header in columns:
-            self.write_cell(
-                current.pos,
-                'write_string',
-                column_header,
-                header_format
+        if apply_columns:
+            for column_header in columns:
+                self.write_cell(
+                    current.pos,
+                    'write_string',
+                    column_header,
+                    header_format
+                )
+                current.right()
+            current.down()
+        if subtitle is not None:
+            merge_range = current.current_merge_range(width=df.shape[1])
+            merge_format = self.workbook.add_format(
+                {
+                    "bold": 1,
+                    "border": 1,
+                    "align": "center",
+                    "valign": "vcenter",
+                    "bg_color": "#FFDAC4",
+                    "font_color": "#63666A",
+                    "border_color": "#FF6A13"
+                }
             )
-            current.right()
-        current.down()
+            self.wks.merge_range(
+                merge_range,
+                subtitle,
+                merge_format
+            )
+            current.down()
         subtotal_cells = []
         for row in df.fillna("").itertuples():
             for i, cell_value in enumerate(row):
@@ -210,6 +243,7 @@ class RexcelWorksheet:
             current.down()
         if subtotal is not None:
             current.return_right()
+            current.left()
             self.write_cell(
                 current.pos,
                 self.wks.write_string,
@@ -240,14 +274,16 @@ class RexcelWorksheet:
         ----------
         cell: str
             Cell address in "A1" format
-        write_func: str
+        write_func: Union[str, Callable]
             Write function to call ("write_string", "write_formula", "write_boolean", "write_number")
         cell_text: str
             Text to write
         cell_format: str
             Format for cell ("bold", "text", etc.)
         """
-        cell_format = self.FORMATS.get(cell_format)
+        cell_format = self.FORMATS.get(
+            cell_format
+        ) if isinstance(cell_format, str) else cell_format
         write_func = getattr(self.wks, write_func) if isinstance(write_func, str) else write_func
         write_func(cell, cell_text, cell_format)
 
@@ -501,6 +537,39 @@ class RexcelWorksheet:
             format_range,
             config
         )
+
+    def insert_image(
+            self,
+            target_cell: str,
+            image_file: Path,
+            offset: Tuple[int, int] = None,
+            scale: Tuple[int, int] = None,
+            hyperlink: str = None,
+            hyperlink_tip: str = None
+    ):
+        config = {}
+
+        if offset is not None:
+            x_offset, y_offset = offset
+            config["x_offset"] = x_offset
+            config["y_offset"] = y_offset
+
+        if scale is not None:
+            x_scale, y_scale = scale
+            config["x_scale"] = x_scale
+            config["y_scale"] = y_scale
+
+        if hyperlink is not None:
+            config["url"] = hyperlink
+            if hyperlink_tip is not None:
+                config["tip"] = hyperlink_tip
+
+        self.wks.insert_image(
+            target_cell,
+            f"{image_file.absolute()}",
+            config
+        )
+
 
     def write(
             self,
@@ -858,12 +927,14 @@ class RexcelWorkbook:
     def add_worksheet(
             self,
             worksheet_name: str,
-            column_widths: List[Tuple[int, int, int]] = None
+            column_widths: List[Tuple[int, int, int]] = None,
+            image_config: dict = None
     ) -> RexcelWorksheet:
         wks = RexcelWorksheet(
             self.wb,
             worksheet_name,
-            column_widths=column_widths
+            column_widths=column_widths,
+            image_config=image_config
         )
         self.new_worksheets[worksheet_name] = wks
         return wks
@@ -949,32 +1020,56 @@ class RexcelWorkbook:
             hide_right_columns=hide_right_columns
         )
 
-    def add_multiple_dfs(
+    def group_dfs_to_sheet(
             self,
+            df: pd.DataFrame,
+            columns: List[str],
             worksheet_name,
             starting_cell,
             header_format,
-            *dfs,
             skip_between: int = 1,
             column_widths=None,
-            subtotal: str = None
+            subtotal: str = None,
+            image_config: dict = None,
+            rate_df: pd.DataFrame = None
     ):
+        df = df[columns]
+        summary_groups = df.groupby(by=columns[:-1]).sum().reset_index()
+        group_keys = df[columns[0]].unique().tolist()
+        dfs = {
+            group_key: summary_groups[
+                summary_groups[columns[0]] == group_key
+            ].copy()
+            for group_key in group_keys
+        }
+
         # Register new worksheet
         wks = self.add_worksheet(
             worksheet_name=worksheet_name,
-            column_widths=column_widths
+            column_widths=column_widths,
+            image_config=image_config
         )
 
         # List to collect cell addresses for subtotal cells
         subtotal_cells = []
+        apply_columns = True
 
         # Loop over df list applying them to the worksheet
-        for df in dfs:
+        for subtitle, df in dfs.items():
+            if rate_df is not None:
+                df["Rate"] = df.apply(
+                    lambda x: rate_df.loc[(x["Task Type"], x["Locale"]), "Rate"],
+                    axis=1
+                ).fillna(0)
+                df["Subtotal"] = df["Quantity"] * df["Rate"]
             current_cell = wks.simple_write_df(
                 df,
                 starting_cell,
-                subtotal=subtotal
+                subtitle=subtitle,
+                subtotal=subtotal,
+                apply_columns=apply_columns
             )
+            apply_columns = False
             if subtotal is not None:
                 subtotal_cells.append(current_cell.pos)
             for _ in range(skip_between):
@@ -997,6 +1092,5 @@ class RexcelWorkbook:
                 "write_formula",
                 f"=SUM({total_range})"
             )
-
 
 
