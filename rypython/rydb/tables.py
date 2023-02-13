@@ -188,9 +188,8 @@ class RyDBTable:
                 row_values.append(attr_value)
         table = pd.DataFrame(
             table_values,
-            columns=table_def.keys().tolist(),
-            dtype=table_def
-        )
+            columns=list(table_def.keys())
+        ).astype(table_def)
         return cls(table_name, table)
 
     def __repr__(self):
@@ -310,18 +309,20 @@ class RyDBTable:
             fillna: str = ""
     ):
         table = Table(title=name or self.name)
-        results = self.df.query(query).head(count)
+        results = self.df.fillna("").query(query).head(count)
 
-        columns = self.columns if column_formats is None else list(column_formats.keys())
+        column_formats = column_formats or {
+            column: {} for column in self.columns
+        }
 
-        for column in columns:
-            column_format = column_formats.get(column, {})
+        for column, column_format in column_formats.items():
+            # column_format = column_formats.get(column, {})
             table.add_column(column, **column_format)
 
-        for row in results.itertuples():
+        for row in results.astype("string").itertuples():
             row_values = [
                 getattr(row, column, fillna)
-                for column in columns
+                for column in column_formats
             ]
             table.add_row(*row_values)
 

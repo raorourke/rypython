@@ -62,7 +62,7 @@ class O365DB(RyDBSource):
     ):
         super().__init__(type="o365")
         self.site = site
-        self.filepath = "/".split(filepath)
+        self.filepath = filepath.split("/")
         self.db_filename = db_filename
         self.db_file = self.connect()
         self.conn = self.collect_all()
@@ -75,7 +75,6 @@ class O365DB(RyDBSource):
     def collect_table(self, table_name):
         with DataFrame(self.db_file, sheet_name=table_name) as db:
             return RyDBTable(table_name, db.data)
-
 
     def collect_all(self):
         with DataFrame(self.db_file) as db:
@@ -101,6 +100,7 @@ class O365DB(RyDBSource):
 
     def list_tables(self):
         return list(self.data.keys())
+
     def update_row(
             self,
             table_name: str,
@@ -231,11 +231,6 @@ class SQLDB(RyDBSource):
             logging.info("Print replacing server table")
             table = self.conn[table_name]
             table.df.to_sql(table_name, con=self._conn, if_exists="replace")
-
-
-
-
-
 
 
 class RyDB:
