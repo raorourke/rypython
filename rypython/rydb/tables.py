@@ -186,6 +186,7 @@ class RyDBTable:
                         **transform_config
                     )
                 row_values.append(attr_value)
+            table_values.append(row_values)
         table = pd.DataFrame(
             table_values,
             columns=list(table_def.keys())
